@@ -1,0 +1,10 @@
+# 앱 기동 시 /run.sh가 이 파일을 읽어 앱 venv에 자동 설치한다.
+# (.cache/installed_requirements.txt와 비교해 바뀐 경우에만 설치)
+
+# 한국어 TTS — 안내 문장을 MP3로 만든다
+gTTS==2.5.4
+
+# ffmpeg 바이너리 동봉 패키지 — 앱 이미지에 ffmpeg가 없어서 필요하다.
+# MP3를 MCU가 기대하는 PCM(8kHz, unsigned 8bit, mono)으로 변환하는 데 쓴다.
+# 주의: 다운로드가 약 58MB라 처음 설치할 때 시간이 걸린다.
+imageio-ffmpeg==0.8.1

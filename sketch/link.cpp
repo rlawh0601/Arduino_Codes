@@ -2,10 +2,11 @@
 #include "Arduino_RouterBridge.h"
 #include <vector>
 
-// Python이 Bridge로 보낸 소리 출력 여부를 받는다.
-// 스피커가 아직 연결되지 않아서 실제 재생은 하지 않고 Monitor로만 출력한다 (추후 실제 재생과 연결 예정).
+// Python이 Bridge로 보낸 최종 판단(소리 출력 여부)을 받는다.
+// 실제 재생은 이 신호가 아니라 audio_rx의 "audio_play"가 트리거한다.
+// 이 핸들러는 판단 시점을 Monitor에서 확인하고 CSV와 대조하기 위한 로그용이다.
 static void onSoundDecision(int shouldPlay) {
-  Monitor.println(shouldPlay ? "SOUND,1" : "SOUND,0");
+  linkSendLine(shouldPlay ? "SOUND,1" : "SOUND,0");
 }
 
 // Bridge 초기화 + Python → MCU 핸들러 등록 (baud는 더 이상 쓰지 않음)
@@ -22,21 +23,10 @@ void linkSendState(unsigned long timeMs, int fsr, bool doorOpen, bool umbrellaPr
   Bridge.notify("state", payload);
 }
 
-// 디버그/음성 프로토콜 줄 출력 — Monitor로만 보임 (리눅스로의 실제 전달은 Bridge로 대체됨)
+// 로그 한 줄 — 시리얼 모니터와 Python 로그(앱 로그) 양쪽으로 보낸다.
+// Python으로도 보내는 이유: 시리얼 모니터를 열지 않아도 MCU의 DBG/ERR을 앱 로그에서 볼 수 있어야
+// 재생이 왜 안 되는지 진단할 수 있다.
 void linkSendLine(const char* line) {
   Monitor.println(line);
-}
-
-// Bridge로 전환되어 더 이상 실제 바이트를 받지 않음 — 음성 수신 코드는 항상 "수신 없음"으로 보고 휴면 상태를 유지한다
-bool linkReadLine(char* buf, int maxLen) {
-  (void)buf; (void)maxLen;
-  return false;
-}
-
-bool linkAvailable() {
-  return false;
-}
-
-uint8_t linkReadByte() {
-  return 0;
+  Bridge.notify("mcu_log", MsgPack::str_t(line));
 }

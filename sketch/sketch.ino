@@ -31,14 +31,21 @@ static void runStateMachine(unsigned long now) {
                     s.umbrellaPresent != prevState.umbrellaPresent);
     if (firstLoop || changed || (now - lastSendMs >= INTERVAL_STATE_MS))
       sendState();
-    if (rxSt == AUDIO_RECEIVING) appState = RECEIVING;
+
+    if (rxSt == AUDIO_RECEIVED) {
+      // 미리 올려둔 음성에 재생 요청이 들어왔다 — 전송을 기다리지 않고 바로 재생
+      playerStart(audioRxGetData(), audioRxGetSize());
+      appState = PLAYING; playStartMs = now;
+    } else if (rxSt == AUDIO_RECEIVING) {
+      appState = RECEIVING;  // 미리 올리는 중 (알림과 무관)
+    }
 
   } else if (appState == RECEIVING) {
+    // 미리 올리는 중. 끝나면(commit 성공/실패 모두) IDLE이 되므로 센서 감지로 복귀한다
     if (rxSt == AUDIO_RECEIVED) {
       playerStart(audioRxGetData(), audioRxGetSize());
       appState = PLAYING; playStartMs = now;
     } else if (rxSt == AUDIO_IDLE) {
-      // 수신 오류 — audioRxReset이 READY 전송, 센서 감지 재개
       appState = SENSING; sendState();
     }
 
@@ -50,7 +57,7 @@ static void runStateMachine(unsigned long now) {
       if (ERR_REPORT_ENABLED) linkSendLine("ERR,PLAY");
     }
     if (timeout || !playerIsPlaying()) {
-      audioRxReset();  // READY 전송 + 버퍼 초기화
+      audioRxReset();  // 버퍼 초기화 + IDLE 복귀 (다음 음성을 받을 수 있게)
       appState = SENSING; sendState();
     }
   }
@@ -59,7 +66,7 @@ static void runStateMachine(unsigned long now) {
 void setup() {
   linkBegin(SERIAL_BAUD);
   sensorsBegin();
-  audioRxBegin(); // IDLE 진입 + 최초 READY 전송
+  audioRxBegin(); // IDLE 진입 + 음성 수신 Bridge 핸들러 3개 등록
   playerBegin();
 }
 
